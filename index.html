@@ -1770,7 +1770,7 @@ function prefillBookingForm(){
    PAGE NAVIGATION
 ══════════════════════════════ */
 // Change this once when the CMS is deployed.
-const BLOG_APP_URL='http://localhost:3000';
+const BLOG_APP_URL=window.location.origin;
 const BLOG_ORIGIN=BLOG_APP_URL.replace(/\/+$/,'');
 const BLOG_API_URL=`${BLOG_ORIGIN}/api/public/posts`;
 let blogPosts=[];

@@ -59,7 +59,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000/blog](http://localhost:3000/blog). The editorial sign-in is at [http://localhost:3000/admin/login](http://localhost:3000/admin/login). Seed content is attributed to the VersaExam editorial team; seed dates are left unset because no original publication dates were supplied. Seeding is repeatable and does not overwrite posts that already exist.
+Open [http://localhost:3000/](http://localhost:3000/) for the main website, [http://localhost:3000/blog](http://localhost:3000/blog) for the journal, or [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the editorial sign-in. These routes share one server and can be tested through one forwarded port. Seed content is attributed to the VersaExam editorial team; seed dates are left unset because no original publication dates were supplied. Seeding is repeatable and does not overwrite posts that already exist.
 
 The dashboard supports creating, editing, publishing, unpublishing, and deleting posts. Draft posts are available only in the authenticated dashboard and are excluded from public listing, search, article pages, and metadata. Article bodies accept Markdown; embedded raw HTML is not rendered. The editor toolbar inserts Markdown at the current selection and previews using the same raw-HTML-disabled renderer. Uploaded JPEG, PNG, GIF, and WebP files (up to 5 MiB) are stored as PostgreSQL byte data and inserted into the article as `/api/media/{id}` image links.
 
@@ -67,9 +67,9 @@ The checked-in `20261107000000_add_media` migration adds the `Media` table. Appl
 
 ## Legacy site integration
 
-The existing `index.html` blog preview requests `GET /api/public/posts` from this app when a visitor opens Blogs. The endpoint returns at most 50 published posts, ordered newest first, with only `title`, `slug`, `excerpt`, and `category`. It is read-only and allows unauthenticated cross-origin GET requests for the public preview; it does not return post bodies, drafts, or admin data. Preview cards link to each canonical `/blog/{slug}` article.
+The main website at `index.html` is served from `/` by this app. Its blog preview requests `GET /api/public/posts` from the same origin when a visitor opens Blogs. The endpoint returns at most 50 published posts, ordered newest first, with only `title`, `slug`, `excerpt`, and `category`. It is read-only and allows unauthenticated cross-origin GET requests for the public preview; it does not return post bodies, drafts, or admin data. Preview cards link to each canonical `/blog/{slug}` article.
 
-The CMS base URL is configured once in `index.html` as `BLOG_APP_URL`, defaulting to `http://localhost:3000`. **Change this value to the deployed CMS origin before publishing the legacy site.** The CMS must be reachable over HTTPS in production; the public endpoint sends wildcard CORS headers because its published preview data is intentionally public.
+The CMS base URL is derived from the page's origin in `index.html`, so local and deployed links use the same host. The CMS must be reachable over HTTPS in production; the public endpoint sends wildcard CORS headers because its published preview data is intentionally public.
 
 ## Checks and useful commands
 
