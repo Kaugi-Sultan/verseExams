@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VersaExam — Admin Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase (shared real-time database — must match the config in index.html) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1A56DB;--blue-light:#EBF5FF;--blue-mid:#3B82F6;--blue-dark:#1E40AF;
+  --green:#059669;--green-light:#ECFDF5;--green-mid:#10B981;
+  --navy:#0F172A;--slate:#1E293B;--gray:#64748B;--muted:#94A3B8;--border:#E2E8F0;
+  --white:#FFFFFF;--bg:#F1F5F9;--sidebar:#0F172A;--sidebar-w:240px;
+  --red:#EF4444;--red-light:#FEF2F2;--yellow:#F59E0B;--yellow-light:#FFF7ED;
+  --font-head:'Sora',sans-serif;--font-body:'Plus Jakarta Sans',sans-serif;
+  --shadow:0 2px 12px rgba(0,0,0,0.06);--shadow-md:0 4px 24px rgba(0,0,0,0.1);
+  --radius:10px;--radius-lg:16px;
+}
+html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:var(--slate);overflow:hidden}
+h1,h2,h3,h4{font-family:var(--font-head)}
+button{cursor:pointer;border:none;font-family:var(--font-body)}
+input,select,textarea{font-family:var(--font-body)}
+a{text-decoration:none;color:inherit}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0F172A 0%,#1E3A8A 100%);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+#loginScreen.hidden{display:none}
+.login-box{background:#fff;border-radius:var(--radius-lg);padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,0.3)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.login-logo .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800}
+.login-logo span{font-family:var(--font-head);font-size:1.3rem;font-weight:800;color:var(--navy)}
+.login-logo span em{color:var(--green);font-style:normal}
+.login-box h2{font-size:1.2rem;font-weight:700;color:var(--navy);margin-bottom:6px}
+.login-box p{font-size:.85rem;color:var(--muted);margin-bottom:24px}
+.login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.login-field label{font-size:.82rem;font-weight:600;color:var(--slate)}
+.login-field input{padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:.9rem;outline:none;transition:border-color .2s}
+.login-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.08)}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;border-radius:50px;font-weight:700;font-size:.95rem;font-family:var(--font-head);border:none;cursor:pointer;transition:all .25s;box-shadow:0 4px 16px rgba(26,86,219,0.3);margin-top:4px}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,86,219,0.4)}
+.login-err{background:var(--red-light);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);padding:10px 14px;color:var(--red);font-size:.83rem;font-weight:600;display:none;margin-bottom:12px}
+.login-err.show{display:block}
+.login-hint{font-size:.75rem;color:var(--muted);text-align:center;margin-top:14px}
+
+/* ── APP SHELL ── */
+#app{display:none;height:100vh;flex-direction:row}
+#app.show{display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.sidebar-logo .s-logo{font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:#fff;display:flex;align-items:center;gap:8px}
+.sidebar-logo .s-logo .li{width:30px;height:30px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
+.sidebar-logo .s-logo em{color:var(--green-mid);font-style:normal}
+.sidebar-logo p{font-size:.72rem;color:rgba(255,255,255,0.4);margin-top:4px;padding-left:38px}
+.sidebar-nav{padding:14px 12px;flex:1}
+.nav-group{margin-bottom:20px}
+.nav-group-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.3);padding:0 8px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);color:rgba(255,255,255,0.6);font-size:.87rem;font-weight:500;cursor:pointer;transition:all .2s;margin-bottom:2px;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{background:rgba(255,255,255,0.07);color:#fff}
+.nav-item.active{background:rgba(26,86,219,0.3);color:#fff;font-weight:600}
+.nav-item .ni-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0}
+.nav-item .ni-badge{margin-left:auto;background:var(--red);color:#fff;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:50px}
+.sidebar-footer{padding:14px 12px;border-top:1px solid rgba(255,255,255,0.08)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);background:rgba(255,255,255,0.05)}
+.sidebar-user .su-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green-mid));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0}
+.sidebar-user .su-info strong{display:block;font-size:.82rem;font-weight:600;color:#fff}
+.sidebar-user .su-info span{font-size:.72rem;color:rgba(255,255,255,0.4)}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--radius);color:rgba(255,255,255,0.5);font-size:.83rem;cursor:pointer;transition:all .2s;background:transparent;border:none;width:100%;margin-top:6px}
+.logout-btn:hover{background:rgba(239,68,68,0.15);color:var(--red)}
+
+/* ── MAIN CONTENT ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{padding:14px 24px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:var(--shadow)}
+.topbar h2{font-size:1.1rem;font-weight:700;color:var(--navy)}
+.topbar p{font-size:.8rem;color:var(--muted);margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.tb-badge{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:50px;font-size:.78rem;font-weight:600}
+.tb-badge.online{background:var(--green-light);color:var(--green)}
+.tb-badge.offline{background:var(--red-light);color:var(--red)}
+.view-site-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--blue-light);color:var(--blue);border-radius:50px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.view-site-btn:hover{background:var(--blue);color:#fff}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* ── PANELS ── */
+.panel{display:none}.panel.active{display:block}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:var(--radius-lg);padding:22px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.card h3{font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:4px}
+.card p{font-size:.82rem;color:var(--muted)}
+
+/* ── DASHBOARD STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:22px}
+.stat-card{background:#fff;border-radius:var(--radius-lg);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
+.stat-icon{width:48px;height:48px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-num{font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--navy);line-height:1}
+.stat-lbl{font-size:.75rem;color:var(--muted);font-weight:500;margin-top:3px}
+.stat-change{font-size:.72rem;font-weight:600;margin-top:4px}
+.stat-change.up{color:var(--green)}
+.stat-change.down{color:var(--red)}
+.dash-grid{display:grid;gap:16px}
+
+/* ── TABLES ── */
+.table-wrap{overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+thead{background:linear-gradient(135deg,var(--blue),var(--blue-dark))}
+th{padding:12px 14px;text-align:left;font-weight:700;color:#fff;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;border-right:1px solid rgba(255,255,255,0.12)}
+th:last-child{border-right:none}
+td{padding:13px 14px;border-bottom:1px solid var(--border);border-right:1px solid rgba(226,232,240,0.6);color:var(--slate);vertical-align:middle}
+td:last-child{border-right:none}
+tbody tr:nth-child(even) td{background:rgba(241,245,249,0.5)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--blue-light)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:50px;font-size:.72rem;font-weight:700}
+.badge.new{background:#DBEAFE;color:#1D4ED8}
+.badge.pending{background:#FEF3C7;color:#92400E}
+.badge.done{background:#D1FAE5;color:#065F46}
+.badge.urgent{background:#FEE2E2;color:#991B1B}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-state .es-icon{font-size:3rem;margin-bottom:12px}
+.empty-state p{font-size:.88rem}
+
+/* ── LIVE CHAT ADMIN ── */
+.chat-layout{display:grid;grid-template-columns:260px 1fr;gap:0;background:#fff;border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;height:calc(100vh - 180px)}
+.chat-sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.chat-sidebar h4{padding:14px 16px;font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);flex-shrink:0}
+.session-list{flex:1;overflow-y:auto}
+.session-item{padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s}
+.session-item:hover{background:var(--bg)}
+.session-item.active{background:var(--blue-light)}
+.session-item .si-name{font-size:.87rem;font-weight:600;color:var(--navy);display:flex;align-items:center;justify-content:space-between}
+.session-item .si-preview{font-size:.76rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-item .si-time{font-size:.7rem;color:var(--muted);margin-top:4px}
+.unread-dot{width:8px;height:8px;background:var(--red);border-radius:50%;flex-shrink:0}
+.chat-main{display:flex;flex-direction:column;overflow:hidden}
+.chat-main-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.chat-main-head h4{font-size:.92rem;font-weight:700;color:var(--navy)}
+.chat-main-head p{font-size:.75rem;color:var(--muted)}
+.chat-msgs{flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:9px}
+.chat-no-sel{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);gap:8px;font-size:.88rem}
+.cmsg-row{display:flex;flex-direction:column;max-width:78%;margin-bottom:2px}
+.cmsg-row.left{align-self:flex-start;align-items:flex-start}
+.cmsg-row.right{align-self:flex-end;align-items:flex-end}
+.cmsg{font-size:.83rem;padding:9px 13px;border-radius:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;width:fit-content}
+.cmsg.bot,.cmsg.student{background:var(--bg);color:var(--slate);border-bottom-left-radius:3px}
+.cmsg.user,.cmsg.student-sent{background:var(--blue-light);color:var(--blue-dark);border-bottom-left-radius:3px}
+.cmsg.admin-sent{background:var(--blue);color:#fff;border-bottom-right-radius:3px}
+.cmsg-label{display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--muted);margin-bottom:2px;padding:0 3px}
+.cmsg-time{font-size:.68rem;color:var(--muted);margin-top:2px;padding:0 3px}
+.chat-reply-area{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.chat-reply-area textarea{flex:1;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:.85rem;outline:none;resize:none;min-height:44px;max-height:100px;font-family:var(--font-body);line-height:1.5;transition:border-color .2s}
+.chat-reply-area textarea:focus{border-color:var(--blue)}
+.chat-reply-area textarea:disabled{background:var(--bg);color:var(--muted)}
+.send-reply-btn{padding:10px 18px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;border-radius:var(--radius);font-size:.83rem;font-weight:600;border:none;cursor:pointer;align-self:flex-end;white-space:nowrap;transition:all .2s}
+.send-reply-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(26,86,219,0.3)}
+.send-reply-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+
+/* ── SETTINGS FORM ── */
+.settings-grid{display:grid;gap:20px}
+.settings-card{background:#fff;border-radius:var(--radius-lg);padding:24px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.settings-card h3{font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:4px}
+.settings-card p{font-size:.8rem;color:var(--muted);margin-bottom:18px;line-height:1.6}
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.form-group label{font-size:.8rem;font-weight:600;color:var(--slate)}
+.form-group input,.form-group select,.form-group textarea{padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:.87rem;outline:none;width:100%;transition:border-color .2s;background:#fff;color:var(--navy)}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.07)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.save-btn{padding:10px 22px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;border-radius:50px;font-size:.85rem;font-weight:600;border:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.save-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,86,219,0.3)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0}
+.toggle-row .tr-info strong{display:block;font-size:.88rem;font-weight:600;color:var(--navy)}
+.toggle-row .tr-info span{font-size:.78rem;color:var(--muted)}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:50px;cursor:pointer;transition:.3s}
+.toggle-slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--green-mid)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(20px)}
+.save-ok{display:none;color:var(--green);font-size:.82rem;font-weight:600;margin-top:8px}
+.save-ok.show{display:block}
+.api-key-group{position:relative}
+.api-key-group input{padding-right:80px}
+.show-key-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--blue);font-size:.75rem;font-weight:600;cursor:pointer}
+.copy-key-btn{position:absolute;right:54px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:.75rem;font-weight:600;cursor:pointer}
+
+/* ── ORDERS TABLE EXTRAS ── */
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:7px 16px;border-radius:50px;font-size:.8rem;font-weight:600;color:var(--muted);background:#fff;border:1.5px solid var(--border);cursor:pointer;transition:all .2s}
+.filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.search-input{padding:8px 13px;border:1.5px solid var(--border);border-radius:50px;font-size:.83rem;outline:none;width:220px;font-family:var(--font-body)}
+.search-input:focus{border-color:var(--blue)}
+.action-btn{padding:5px 12px;border-radius:50px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.action-btn.view{background:var(--blue-light);color:var(--blue)}
+.action-btn.mark{background:var(--green-light);color:var(--green)}
+.action-btn.del{background:var(--red-light);color:var(--red)}
+.action-btn.engage{background:#EDE9FE;color:#6D28D9}
+
+/* ── ORDER DETAIL MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:5000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.2)}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.modal-head h3{font-size:1rem;font-weight:700;color:var(--navy)}
+.modal-close{background:var(--bg);border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.modal-body{padding:22px;overflow-y:auto}
+.detail-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.detail-row:last-child{border-bottom:none}
+.detail-row .dr-label{font-size:.78rem;font-weight:700;color:var(--muted);width:130px;flex-shrink:0;padding-top:1px}
+.detail-row .dr-val{font-size:.88rem;color:var(--slate);line-height:1.5}
+
+/* ── NOTICE BANNER ── */
+.notice{background:var(--yellow-light);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius);padding:12px 16px;font-size:.82rem;color:#92400E;margin-bottom:18px;display:flex;align-items:flex-start;gap:10px;line-height:1.55}
+.notice strong{display:block;font-weight:700;color:#78350F;margin-bottom:2px}
+.notice-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+
+/* ── MOBILE SIDEBAR ── */
+.mob-sidebar-toggle{display:none;padding:10px;cursor:pointer;background:none;border:none;color:var(--slate);font-size:1.3rem}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-240px;top:0;bottom:0;z-index:200;transition:left .3s}
+  .sidebar.open{left:0;box-shadow:4px 0 24px rgba(0,0,0,0.2)}
+  .mob-sidebar-toggle{display:flex}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .form-row{grid-template-columns:1fr}
+  .chat-layout{grid-template-columns:1fr;height:calc(100vh - 140px)}
+  .chat-sidebar{height:200px;border-right:none;border-bottom:1px solid var(--border)}
+}
+@media(max-width:480px){
+  .stats-row{grid-template-columns:1fr}
+  .content{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">⚡</div>
+      <span>Versa<em>Exam</em></span>
+    </div>
+    <h2>Admin Dashboard</h2>
+    <p>Sign in with your Firebase admin email and password.</p>
+    <div class="login-err" id="loginErr">Incorrect email or password. Please try again.</div>
+    <div class="login-field"><label>Email Address</label><input type="email" id="loginEmail" placeholder="admin@example.com" onkeypress="lk(event)"></div>
+    <div class="login-field"><label>Password</label>
+      <div class="api-key-group">
+        <input type="password" id="loginPass" placeholder="••••••••" onkeypress="lk(event)">
+        <button type="button" class="show-key-btn" onclick="toggleLoginPw(this)">Show</button>
+      </div>
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In to Dashboard →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="s-logo"><div class="li">⚡</div> Versa<em>Exam</em></div>
+      <p>Admin Dashboard</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">
+        <div class="nav-group-label">Overview</div>
+        <button class="nav-item active" onclick="showPanel('dashboard',this)"><span class="ni-icon">📊</span> Dashboard</button>
+        <button class="nav-item" onclick="showPanel('orders',this)"><span class="ni-icon">📋</span> Bookings / Orders <span class="ni-badge" id="newOrdersBadge" style="display:none">0</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Communication</div>
+        <button class="nav-item" onclick="showPanel('chat',this)"><span class="ni-icon">💬</span> Live Chat <span class="ni-badge" id="newChatsBadge" style="display:none">0</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Reviews</div>
+        <button class="nav-item" onclick="showPanel('feedback',this)"><span class="ni-icon">⭐</span> Feedback & Reviews <span class="ni-badge" id="newFeedbackBadge" style="display:none">0</span></button>
+        <button class="nav-item" onclick="showPanel('clients',this)"><span class="ni-icon">🪪</span> Clients <span class="ni-badge" id="verifyBadge" style="display:none">0</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Configuration</div>
+        <button class="nav-item" onclick="showPanel('settings',this)"><span class="ni-icon">⚙️</span> Site Settings</button>
+        <button class="nav-item" onclick="showPanel('integrations',this)"><span class="ni-icon">🔌</span> Integrations</button>
+        <button class="nav-item" onclick="showPanel('display',this)"><span class="ni-icon">👁️</span> Display Controls</button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="su-av" id="adminAvatar">A</div>
+        <div class="su-info"><strong id="adminUsername">Admin</strong><span>Administrator</span></div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="mob-sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <div>
+          <h2 id="panelTitle">Dashboard</h2>
+          <p id="panelSubtitle">Overview of your academic support platform</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="tb-badge online" id="statusBadge">🟢 Online</div>
+        <button class="view-site-btn" onclick="window.open('index.html','_blank')">🌐 View Site</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ══ PANEL: DASHBOARD ══ -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="notice" id="dashFirebaseWarning" style="display:none">
+          <span class="notice-icon">⚠️</span>
+          <div><strong>Cross-device sync is OFF.</strong> Bookings and chats only appear on this exact browser right now. <button onclick="showPanel('integrations',document.querySelectorAll('.nav-item')[5])" style="background:none;border:none;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer;padding:0;font-size:inherit">Set up Firebase (free, 5 min) →</button></div>
+        </div>
+        <!-- Verification alert — appears whenever students are waiting for a code -->
+        <div id="dashVerifyAlert" style="display:none;background:linear-gradient(135deg,#FFF7ED,#FEF3C7);border:1.5px solid #F59E0B;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:none;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🔔</span>
+            <div>
+              <strong style="color:#92400E;font-size:.9rem" id="dashVerifyAlertText">Students waiting for verification codes</strong>
+              <p style="font-size:.78rem;color:#92400E;margin-top:1px">Go to the Clients panel to send them their codes via WhatsApp</p>
+            </div>
+          </div>
+          <button onclick="showPanel('clients',document.querySelectorAll('.nav-item')[3])" style="background:#F59E0B;color:#fff;border:none;border-radius:50px;padding:8px 16px;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap">View & Send Codes →</button>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-icon" style="background:#EBF5FF">📋</div><div><div class="stat-num" id="statOrders">0</div><div class="stat-lbl">Total Bookings</div><div class="stat-change up" id="statOrdersChange">↑ 0 this week</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#ECFDF5">💬</div><div><div class="stat-num" id="statChats">0</div><div class="stat-lbl">Chat Sessions</div><div class="stat-change up" id="statChatsChange">↑ 0 today</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#FFF7ED">⏳</div><div><div class="stat-num" id="statPending">0</div><div class="stat-lbl">Pending Orders</div><div class="stat-change down" id="statPendingNote">Needs attention</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#FDF4FF">✅</div><div><div class="stat-num" id="statDone">0</div><div class="stat-lbl">Completed</div><div class="stat-change up">All time</div></div></div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- Recent Bookings -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div><h3>Recent Bookings</h3><p>Latest student requests</p></div>
+              <button class="filter-btn active" onclick="showPanel('orders',document.querySelector('.nav-item:nth-child(2)'))">View All →</button>
+            </div>
+            <div class="table-wrap">
+              <table id="recentTable">
+                <thead><tr><th>Student</th><th>Service</th><th>Deadline</th><th>Status</th></tr></thead>
+                <tbody id="recentBody"><tr><td colspan="4"><div class="empty-state"><div class="es-icon">📋</div><p>No bookings yet. They'll appear here when students submit the form.</p></div></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Recent Chats -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div><h3>Recent Chat Sessions</h3><p>Latest live chat conversations</p></div>
+              <button class="filter-btn active" onclick="showPanel('chat',document.querySelectorAll('.nav-item')[2])">View All →</button>
+            </div>
+            <div id="recentChatsEl">
+              <div class="empty-state"><div class="es-icon">💬</div><p>No chat sessions yet. Student conversations from the main site appear here.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: ORDERS ══ -->
+      <div class="panel" id="panel-orders">
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterOrders('all',this)">All</button>
+          <button class="filter-btn" onclick="filterOrders('new',this)">🆕 New</button>
+          <button class="filter-btn" onclick="filterOrders('pending',this)">⏳ Pending</button>
+          <button class="filter-btn" onclick="filterOrders('done',this)">✅ Done</button>
+          <button class="filter-btn" onclick="filterOrders('urgent',this)">🔴 Urgent</button>
+          <input type="text" class="search-input" placeholder="🔍 Search by name or service..." oninput="searchOrders(this.value)" style="margin-left:auto">
+          <button class="filter-btn" onclick="exportOrdersExcel()" style="background:#217346;color:#fff;border:none" title="Download all bookings as Excel spreadsheet">📥 Excel</button>
+          <button class="filter-btn" onclick="syncToSheets()" id="sheetsSyncBtn" style="background:#0F9D58;color:#fff;border:none" title="Sync to Google Sheets">📊 Sheets</button>
+        </div>
+        <div id="sheetsSyncStatus" style="display:none;font-size:.78rem;padding:6px 12px;border-radius:var(--radius);margin-bottom:12px"></div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Name</th><th>Service</th><th>Platform</th><th>Deadline</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="ordersBody">
+                <tr><td colspan="8"><div class="empty-state" style="padding:32px 20px"><div class="es-icon">📋</div><p>No bookings yet. Submissions from the main site booking form will appear here.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: CHAT ══ -->
+      <div class="panel" id="panel-chat">
+        <!-- Verification alert strip — shown when students are waiting for codes -->
+        <div id="chatVerifyAlert" style="display:none;background:#FEF3C7;border-bottom:1px solid #F59E0B;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0">
+          <span style="font-size:.82rem;color:#92400E;font-weight:600">🔔 <span id="chatVerifyAlertText">Student waiting for verification code</span></span>
+          <button onclick="showPanel('clients',document.querySelectorAll('.nav-item')[3])" style="background:#F59E0B;color:#fff;border:none;border-radius:50px;padding:5px 12px;font-size:.74rem;font-weight:700;cursor:pointer;white-space:nowrap">Send Code →</button>
+        </div>
+        <div class="chat-layout">
+          <div class="chat-sidebar">
+            <h4>Conversations <span id="chatCount" style="color:var(--blue)"></span></h4>
+            <div class="session-list" id="adminSessionList">
+              <div class="empty-state" style="padding:32px 16px"><div class="es-icon">💬</div><p>No chats yet. Student conversations from the live chat widget appear here.</p></div>
+            </div>
+          </div>
+          <div class="chat-main">
+            <div class="chat-main-head" id="chatMainHead">
+              <div><h4>Select a conversation</h4><p>Choose a session from the left to view and reply</p></div>
+            </div>
+            <div class="chat-msgs" id="adminMsgs">
+              <div class="chat-no-sel"><span style="font-size:2.5rem">💬</span><span>Select a conversation to start replying</span></div>
+            </div>
+            <div class="chat-reply-area" id="adminReplyArea">
+              <textarea id="adminReplyText" placeholder="Select a conversation first..." disabled rows="2" onkeydown="handleAdminKey(event)"></textarea>
+              <button class="send-reply-btn" id="adminSendBtn" onclick="sendAdminReply()" disabled>Send →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: FEEDBACK & REVIEWS ══ -->
+      <div class="panel" id="panel-feedback">
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterFeedback('all',this)">All</button>
+          <button class="filter-btn" onclick="filterFeedback('pending',this)">⏳ Pending Approval</button>
+          <button class="filter-btn" onclick="filterFeedback('approved',this)">✅ Approved (Live)</button>
+          <button class="filter-btn" onclick="filterFeedback('rejected',this)">🚫 Rejected</button>
+        </div>
+        <div id="feedbackListWrap" class="dash-grid"></div>
+      </div>
+
+      <!-- ══ PANEL: CLIENTS ══ -->
+      <div class="panel" id="panel-clients">
+        <!-- Verification Queue -->
+        <div class="card" id="verifyQueueCard" style="margin-bottom:18px;display:none">
+          <h3 style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            🔔 Pending Verifications
+            <span class="badge new" id="verifyQueueCount">0</span>
+          </h3>
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">These students are waiting for a verification code. Click "Send Code" to generate a 4-digit code and send it to them on WhatsApp.</p>
+          <div id="verifyQueueList"></div>
+        </div>
+        <!-- All Clients -->
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterClients('all',this)">All</button>
+          <button class="filter-btn" onclick="filterClients('verified',this)">✅ Verified</button>
+          <button class="filter-btn" onclick="filterClients('blocked',this)">🚫 Blocked</button>
+          <input type="text" class="search-input" placeholder="🔍 Search by name, phone or ID..." oninput="searchClients(this.value)" style="margin-left:auto">
+        </div>
+        <div id="clientsListWrap"></div>
+      </div>
+
+      <!-- ══ PANEL: SETTINGS ══ -->
+      <div class="panel" id="panel-settings">
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>🏢 Business Information</h3>
+            <p>Update your business details. These appear throughout the website.</p>
+            <div class="form-row">
+              <div class="form-group"><label>Business Name</label><input type="text" id="s_bizName" placeholder="VersaExam"></div>
+              <div class="form-group"><label>Tagline</label><input type="text" id="s_tagline" placeholder="Academic Success Made Easy"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>WhatsApp Number</label><input type="text" id="s_waNumber" placeholder="+16727631736"></div>
+              <div class="form-group"><label>Support Email</label><input type="email" id="s_email" placeholder="support@versaexam.com"></div>
+            </div>
+            <div class="form-group"><label>Change Login Password</label><input type="password" id="s_adminPass" placeholder="Enter new password (leave blank to keep current)"><p style="font-size:.75rem;color:var(--muted);margin-top:4px">This changes your Firebase Authentication password. You'll use it next time you log in.</p></div>
+            <button class="save-btn" onclick="saveSettings()">💾 Save Business Settings</button>
+            <div class="save-ok" id="settingsSaveOk">✅ Settings saved successfully!</div>
+          </div>
+
+          <div class="settings-card">
+            <h3>📧 Admin Notification Email</h3>
+            <p>When a student submits a booking, a notification is sent to this email address.</p>
+            <div class="form-group"><label>Notification Email(s)</label><input type="email" id="s_notifEmail" placeholder="yourname@gmail.com"></div>
+            <p style="font-size:.76rem;color:var(--muted);margin-top:-6px;margin-bottom:14px">Separate multiple emails with commas.</p>
+            <button class="save-btn" onclick="saveNotifEmail()">💾 Save Email</button>
+            <div class="save-ok" id="emailSaveOk">✅ Notification email updated!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: INTEGRATIONS ══ -->
+      <div class="panel" id="panel-integrations">
+        <div class="notice"><span class="notice-icon">⚙️</span><div><strong>One-time Setup Required</strong>Fill in your Firebase, EmailJS and Google Sheets credentials to activate full functionality. Students will never see this configuration — it is only visible to you here in the admin panel.</div></div>
+        <div class="settings-grid">
+          <div class="settings-card" id="firebaseStatusCard" style="border:2px solid var(--border)">
+            <h3>🔥 Firebase Database <span id="fbBadge" style="font-size:.7rem;padding:3px 10px;border-radius:50px;margin-left:8px;font-weight:700"></span></h3>
+            <p id="fbStatusText" style="margin-bottom:14px"></p>
+            <div class="notice" style="margin-bottom:0"><span class="notice-icon">📌</span><div><strong>This is the most important integration.</strong> Without it, bookings, chats, and feedback ONLY save on whichever single device/browser a student or admin is using — they will not appear across devices. To fix this permanently:<br><br>
+              1. Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue);font-weight:600">console.firebase.google.com</a> → Create a free project<br>
+              2. Build → Firestore Database → Create database → Start in <strong>test mode</strong><br>
+              3. Project Settings (⚙️ icon) → scroll to "Your apps" → Add app → Web (&lt;/&gt;)<br>
+              4. Copy the <code>firebaseConfig</code> values<br>
+              5. Paste them into the <code>FIREBASE_CONFIG</code> object at the top of the &lt;script&gt; tag in <strong>both</strong> index.html AND admin.html<br>
+              6. Save both files and re-upload — bookings will now sync everywhere instantly.
+            </div></div>
+          </div>
+
+          <div class="settings-card">
+            <h3>📧 EmailJS Configuration</h3>
+            <p>EmailJS sends an instant email notification to you every time a student submits a booking form. <a href="https://emailjs.com" target="_blank" style="color:var(--blue);font-weight:600">→ Sign up free at emailjs.com</a></p>
+            <div class="form-group"><label>Public Key</label>
+              <div class="api-key-group">
+                <input type="password" id="ej_pubkey" placeholder="e.g. user_abc123XYZ">
+                <button class="show-key-btn" onclick="toggleKey('ej_pubkey',this)">Show</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Service ID</label><input type="text" id="ej_service" placeholder="e.g. service_gmail"></div>
+              <div class="form-group"><label>Template ID</label><input type="text" id="ej_template" placeholder="e.g. template_booking"></div>
+            </div>
+            <div class="notice" style="margin-bottom:14px"><span class="notice-icon">📝</span><div><strong>Template Variables to Use in EmailJS:</strong><br>{{student_name}}, {{student_email}}, {{student_phone}}, {{student_country}}, {{service_type}}, {{exam_platform}}, {{course_name}}, {{deadline}}, {{instructions}}, {{submission_time}}</div></div>
+            <button class="save-btn" onclick="saveEmailJS()">💾 Save & Activate EmailJS</button>
+            <div class="save-ok" id="ejSaveOk">✅ EmailJS configuration saved!</div>
+          </div>
+
+          <div class="settings-card">
+            <h3>📊 Google Sheets Integration</h3>
+            <p>Every booking is saved as a new row in your Google Sheet for easy tracking and record keeping. <a href="https://sheets.google.com" target="_blank" style="color:var(--blue);font-weight:600">→ Open Google Sheets</a></p>
+            <div class="form-group"><label>Apps Script Webhook URL</label><input type="text" id="gs_url" placeholder="https://script.google.com/macros/s/...exec"></div>
+            <div class="notice" style="margin-bottom:14px"><span class="notice-icon">📋</span><div><strong>Steps to get your webhook URL:</strong><br>1. Create a Google Sheet with these columns: Timestamp, Name, Email, Phone, Country, Service, Platform, Course, Deadline, Instructions<br>2. Extensions → Apps Script → paste the webhook script<br>3. Deploy as Web App → Anyone → copy the URL here</div></div>
+            <button class="save-btn" onclick="saveSheets()">💾 Save & Activate Sheets</button>
+            <div class="save-ok" id="gsSaveOk">✅ Google Sheets URL saved!</div>
+          </div>
+
+          <div class="settings-card">
+            <h3>✅ Integration Status</h3>
+            <p>Current status of your connected integrations.</p>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>EmailJS Notifications</strong><span id="ejStatus">Not configured</span></div>
+              <div id="ejDot" style="width:10px;height:10px;border-radius:50%;background:var(--muted)"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Google Sheets Storage</strong><span id="gsStatus">Not configured</span></div>
+              <div id="gsDot" style="width:10px;height:10px;border-radius:50%;background:var(--muted)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: DISPLAY CONTROLS ══ -->
+      <div class="panel" id="panel-display">
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>👁️ Student-Facing Display Controls</h3>
+            <p>Control what students see on the main website. Changes take effect immediately when you save.</p>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Show Setup Notice on Booking Form</strong><span>Hides/shows the "Setup Required" orange notice students see</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_setupNotice" checked onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Show Live Chat Widget</strong><span>Toggle the floating live chat button on the main site</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_liveChat" checked onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Show Exit Intent Popup</strong><span>Show a popup when students try to leave the page</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_exitPopup" checked onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Show WhatsApp Floating Button</strong><span>Display the WhatsApp button in the corner of the site</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_waButton" checked onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="tr-info"><strong>Show Sticky Mobile Bar</strong><span>Bottom "Book Now / WhatsApp" bar on mobile</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_stickyBar" checked onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div style="margin-top:16px">
+              <div class="save-ok show" style="display:block;background:var(--blue-light);border-color:rgba(26,86,219,0.2);color:var(--blue)">💡 These toggles save automatically when you flip them. The main site reads these settings on load.</div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>📢 Site Announcement Banner</h3>
+            <p>Show a temporary announcement at the top of the main site (e.g. promotions, holiday hours).</p>
+            <div class="toggle-row" style="margin-bottom:14px">
+              <div class="tr-info"><strong>Enable Announcement Banner</strong><span>Show at the top of every page</span></div>
+              <label class="toggle"><input type="checkbox" id="tog_announcement" onchange="saveDisplaySettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="form-group"><label>Announcement Text</label><textarea id="s_announcement" rows="3" placeholder="e.g. 🎉 Get 20% off all assignments this week! Use code SAVE20"></textarea></div>
+            <button class="save-btn" onclick="saveDisplaySettings();showOk('announceSaveOk')">💾 Save Announcement</button>
+            <div class="save-ok" id="announceSaveOk">✅ Announcement saved!</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ORDER DETAIL MODAL -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>📋 Booking Details</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="orderModalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   FIREBASE CONFIG
+   ⚠️ MUST MATCH the config pasted in index.html exactly,
+   otherwise this dashboard reads a different database!
+═══════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBz2cCCWyurx4Vl5Di1DapY76CD082G3b8",
+  authDomain:        "varsa-test.firebaseapp.com",
+  projectId:         "varsa-test",
+  storageBucket:     "varsa-test.firebasestorage.app",
+  messagingSenderId: "1046259220582",
+  appId:             "1:1046259220582:web:c74180f8c026421cda2da7",
+};
+
+let firebaseReady = false;
+let db = null;
+function isFirebaseConfigured(){ return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'YOUR_FIREBASE_API_KEY'; }
+if(isFirebaseConfigured()){
+  if(typeof firebase === 'undefined'){
+    console.warn('⚠️ Firebase SDK did not load (gstatic.com may be blocked in this preview environment). This will work once viewed on a live hosted URL.')
+  } else {
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+      try{ db.settings({ experimentalForceLongPolling: true, merge: true }); }catch(e){
+        try{ db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); }catch(e2){}
+      }
+      firebaseReady = true;
+      console.log('✅ Firebase connected — admin will see bookings/chats from ALL devices')
+    }catch(err){ console.warn('Firebase init failed:', err); }
+  }
+} else {
+  console.warn('⚠️ Firebase not configured — only seeing data saved on THIS browser. Paste your Firebase config at the top of the <script> in both index.html and admin.html.')
+}
+
+/* ═══════════════════════════════════════════
+   CONFIG — stored in localStorage (site settings, not booking data)
+═══════════════════════════════════════════ */
+const DEFAULTS={
+  biz_name:'VersaExam',
+  tagline:'Academic Success Made Easy',
+  wa_number:'+16727631736',
+  support_email:'support@versaexam.com',
+  notif_email:'',
+  ej_pubkey:'',ej_service:'',ej_template:'',
+  gs_url:'',
+  show_setup_notice:true,
+  show_live_chat:true,
+  show_exit_popup:true,
+  show_wa_button:true,
+  show_sticky_bar:true,
+  show_announcement:false,
+  announcement_text:'',
+};
+function getS(k){const v=localStorage.getItem('ea_'+k);if(v===null)return DEFAULTS[k];try{return JSON.parse(v)}catch{return v}}
+function setS(k,v){localStorage.setItem('ea_'+k,typeof v==='object'?JSON.stringify(v):v)}
+
+/* ═══════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════ */
+function lk(e){if(e.key==='Enter')doLogin()}
+function toggleLoginPw(btn){
+  const el=document.getElementById('loginPass');
+  if(el.type==='password'){el.type='text';btn.textContent='Hide'}
+  else{el.type='password';btn.textContent='Show'}
+}
+
+/* ═══════════════════════════════════════════
+   REAL FIREBASE AUTHENTICATION
+   Replaces the old fake username/password check.
+   Only accounts with admin:true custom claim can access the dashboard.
+═══════════════════════════════════════════ */
+let auth = null;
+if(firebaseReady){
+  auth = firebase.auth();
+
+  // Auto-restore session if admin was already logged in
+  auth.onAuthStateChanged(async (user)=>{
+    if(user){
+      // Verify this account actually has the admin custom claim
+      const token = await user.getIdTokenResult();
+      if(token.claims.admin === true){
+        showDashboard(user);
+      } else {
+        // Signed in but not an admin — sign them out immediately
+        auth.signOut();
+        showLoginError('This account does not have admin access.');
+      }
+    } else {
+      // Not signed in — show login screen
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('app').classList.remove('show');
+    }
+  });
+}
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if(!email || !pass){
+    showLoginError('Please enter your email and password.');
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+
+  if(!firebaseReady || !auth){
+    // Firebase SDK didn't load (file:// or sandbox) — gracefully inform
+    btn.textContent = 'Sign In to Dashboard →';
+    btn.disabled = false;
+    showLoginError('Firebase is not available in this environment. Please open this page from a hosted URL (e.g. your Netlify site).');
+    return;
+  }
+
+  try{
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    const token = await cred.user.getIdTokenResult(true); // force-refresh to get latest claims
+    if(token.claims.admin === true){
+      showDashboard(cred.user);
+    } else {
+      await auth.signOut();
+      showLoginError('This account does not have admin access.');
+    }
+  } catch(err){
+    let msg = 'Sign in failed. Please check your email and password.';
+    if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+      msg = 'Incorrect email or password. Please try again.';
+    } else if(err.code === 'auth/too-many-requests'){
+      msg = 'Too many failed attempts. Please wait a few minutes and try again.';
+    }
+    showLoginError(msg);
+  } finally {
+    btn.textContent = 'Sign In to Dashboard →';
+    btn.disabled = false;
+  }
+}
+
+function showLoginError(msg){
+  const el = document.getElementById('loginErr');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 5000);
+}
+
+function showDashboard(user){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('show');
+  const displayName = user.displayName || user.email.split('@')[0];
+  document.getElementById('adminUsername').textContent = displayName;
+  document.getElementById('adminAvatar').textContent = displayName[0].toUpperCase();
+  loadAll();
+}
+
+function doLogout(){
+  if(auth) auth.signOut();
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginEmail').value='';
+  document.getElementById('loginPass').value='';
+}
+
+// Allow Escape on login (no-op, just prevents errors)
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('loginScreen').classList.contains('hidden')){}});
+
+/* ═══════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════ */
+const panelMeta={
+  dashboard:{title:'Dashboard',sub:'Overview of your academic support platform'},
+  orders:{title:'Bookings & Orders',sub:'All student requests and submissions'},
+  chat:{title:'Live Chat',sub:'Reply to student conversations in real time'},
+  feedback:{title:'Feedback & Reviews',sub:'Approve or reject student reviews before they go public'},
+  clients:{title:'Clients',sub:'Verified client identities, pending verifications, and blocked accounts'},
+  settings:{title:'Site Settings',sub:'Update business information and admin credentials'},
+  integrations:{title:'Integrations',sub:'Configure Firebase, EmailJS, and Google Sheets'},
+  display:{title:'Display Controls',sub:'Control what students see on the main website'},
+};
+function showPanel(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  const m=panelMeta[id]||{};
+  document.getElementById('panelTitle').textContent=m.title||id;
+  document.getElementById('panelSubtitle').textContent=m.sub||'';
+  if(id==='chat')renderAdminSessions();
+  if(id==='feedback')renderFeedbackList();
+  if(id==='clients'){ renderVerifyQueue(); renderClientsList(); }
+  if(id==='integrations')loadIntegrationStatus();
+  if(id==='settings')loadSettingsForm();
+  if(id==='display')loadDisplayForm();
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+/* ═══════════════════════════════════════════
+   DATA STORE — Firebase (shared, cross-device) with localStorage cache fallback
+═══════════════════════════════════════════ */
+let _ordersCache = [];
+let _chatsCache = [];
+let _feedbackCache = [];
+
+function getOrders(){ return _ordersCache.length ? _ordersCache : readLocal('ea_orders'); }
+function getChatSessions(){ return _chatsCache.length ? _chatsCache : readLocal('ea_chats'); }
+function getFeedback(){ return _feedbackCache.length ? _feedbackCache : readLocal('ea_feedback'); }
+function readLocal(key){ try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch{ return []; } }
+
+function saveOrders(d){ _ordersCache=d; localStorage.setItem('ea_orders',JSON.stringify(d)); }
+function saveChatSessions(d){ _chatsCache=d; localStorage.setItem('ea_chats',JSON.stringify(d)); }
+function saveFeedbackList(d){ _feedbackCache=d; localStorage.setItem('ea_feedback',JSON.stringify(d)); }
+
+/* Update a single order — writes to Firestore if available, else localStorage */
+async function updateOrder(order){
+  const list = getOrders();
+  const idx = list.findIndex(o=>o.id===order.id);
+  if(idx>=0) list[idx]=order; else list.unshift(order);
+  saveOrders(list);
+  if(firebaseReady){
+    try{ await db.collection('orders').doc(String(order.id)).set(order); }
+    catch(err){ console.warn('Order update failed:', err); }
+  }
+}
+async function deleteOrderRemote(id){
+  const list = getOrders().filter(o=>o.id!==id);
+  saveOrders(list);
+  if(firebaseReady){
+    try{ await db.collection('orders').doc(String(id)).delete(); }
+    catch(err){ console.warn('Order delete failed:', err); }
+  }
+}
+async function updateChatSession(session){
+  const list = getChatSessions();
+  const idx = list.findIndex(s=>s.id===session.id);
+  if(idx>=0) list[idx]=session; else list.unshift(session);
+  saveChatSessions(list);
+  if(firebaseReady){
+    try{ await db.collection('chats').doc(String(session.id)).set(session); }
+    catch(err){ console.warn('Chat update failed:', err); }
+  }
+}
+async function updateFeedback(item){
+  const list = getFeedback();
+  const idx = list.findIndex(f=>f.id===item.id);
+  if(idx>=0) list[idx]=item; else list.unshift(item);
+  saveFeedbackList(list);
+  if(firebaseReady){
+    try{ await db.collection('feedback').doc(String(item.id)).set(item); }
+    catch(err){ console.warn('Feedback update failed:', err); }
+  }
+}
+async function deleteFeedbackRemote(id){
+  const list = getFeedback().filter(f=>f.id!==id);
+  saveFeedbackList(list);
+  if(firebaseReady){
+    try{ await db.collection('feedback').doc(String(id)).delete(); }
+    catch(err){ console.warn('Feedback delete failed:', err); }
+  }
+}
+
+/* ═══════════════════════════════════════════
+   REAL-TIME LISTENERS (Firestore) — this is what fixes
+   "booking doesn't appear on admin side" across devices
+═══════════════════════════════════════════ */
+function startRealtimeListeners(){
+  if(!firebaseReady){
+    console.warn('Firebase not configured — admin will only see local browser data. Refreshing every few seconds from localStorage instead.');
+    return;
+  }
+  db.collection('orders').orderBy('createdAt','desc').onSnapshot(snap=>{
+    _ordersCache = snap.docs.map(d=>d.data());
+    localStorage.setItem('ea_orders', JSON.stringify(_ordersCache)); // keep cache warm
+    refreshDashboard();
+    if(document.getElementById('panel-orders').classList.contains('active')) renderOrdersTable();
+  }, err=>console.warn('Orders listener error:', err));
+
+  db.collection('chats').orderBy('createdAt','desc').onSnapshot(snap=>{
+    _chatsCache = snap.docs.map(d=>d.data());
+    localStorage.setItem('ea_chats', JSON.stringify(_chatsCache));
+    refreshDashboard();
+    if(document.getElementById('panel-chat').classList.contains('active')){
+      renderAdminSessions();
+      if(activeChatId) loadChatSession(activeChatId);
+    }
+  }, err=>console.warn('Chats listener error:', err));
+
+  db.collection('feedback').orderBy('createdAt','desc').onSnapshot(snap=>{
+    _feedbackCache = snap.docs.map(d=>d.data());
+    localStorage.setItem('ea_feedback', JSON.stringify(_feedbackCache));
+    refreshDashboard();
+    if(document.getElementById('panel-feedback').classList.contains('active')) renderFeedbackList();
+  }, err=>console.warn('Feedback listener error:', err));
+
+  // Verification requests listener
+  db.collection('verifications').where('status','==','pending').onSnapshot(snap=>{
+    const count = snap.size;
+    const badge = document.getElementById('verifyBadge');
+    if(badge){ badge.style.display = count>0?'inline':'none'; badge.textContent = count; }
+
+    // Dashboard alert
+    const dashAlert = document.getElementById('dashVerifyAlert');
+    const dashText  = document.getElementById('dashVerifyAlertText');
+    if(dashAlert){
+      dashAlert.style.display = count>0 ? 'flex' : 'none';
+      if(dashText) dashText.textContent = count===1
+        ? '1 student waiting for a verification code'
+        : `${count} students waiting for verification codes`;
+    }
+
+    // Live Chat panel alert strip
+    const chatAlert = document.getElementById('chatVerifyAlert');
+    const chatText  = document.getElementById('chatVerifyAlertText');
+    if(chatAlert){
+      chatAlert.style.display = count>0 ? 'flex' : 'none';
+      if(chatText) chatText.textContent = count===1
+        ? '1 student waiting for verification code'
+        : `${count} students waiting for verification codes`;
+    }
+
+    if(document.getElementById('panel-clients').classList.contains('active')) renderVerifyQueue();
+  }, err=>console.warn('Verify listener error:', err));
+}
+
+/* ═══════════════════════════════════════════
+   LOAD ALL
+═══════════════════════════════════════════ */
+function loadAll(){
+  refreshDashboard();
+  renderOrdersTable();
+  renderAdminSessions();
+  renderFeedbackList();
+  loadSettingsForm();
+  loadIntegrationStatus();
+  loadDisplayForm();
+  startRealtimeListeners();
+  pollForNewData(); // local-only fallback polling (works even without Firebase)
+  const warn=document.getElementById('dashFirebaseWarning');
+  if(warn) warn.style.display = firebaseReady ? 'none' : 'flex';
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════ */
+function refreshDashboard(){
+  const orders=getOrders();
+  const chats=getChatSessions();
+  const feedback=getFeedback();
+  const pending=orders.filter(o=>o.status==='pending'||o.status==='new').length;
+  const done=orders.filter(o=>o.status==='done').length;
+  const unreadChats=chats.filter(c=>c.unread).length;
+  const pendingFeedback=feedback.filter(f=>f.status==='pending').length;
+  document.getElementById('statOrders').textContent=orders.length;
+  document.getElementById('statChats').textContent=chats.length;
+  document.getElementById('statPending').textContent=pending;
+  document.getElementById('statDone').textContent=done;
+  // badges
+  const nb=document.getElementById('newOrdersBadge');
+  const newOrders=orders.filter(o=>o.status==='new').length;
+  if(newOrders>0){nb.style.display='inline';nb.textContent=newOrders}else{nb.style.display='none'}
+  const cb=document.getElementById('newChatsBadge');
+  if(unreadChats>0){cb.style.display='inline';cb.textContent=unreadChats}else{cb.style.display='none'}
+  const fb=document.getElementById('newFeedbackBadge');
+  if(fb){ if(pendingFeedback>0){fb.style.display='inline';fb.textContent=pendingFeedback}else{fb.style.display='none'} }
+  // recent table
+  const tbody=document.getElementById('recentBody');
+  if(orders.length===0){tbody.innerHTML='<tr><td colspan="4"><div class="empty-state"><div class="es-icon">📋</div><p>No bookings yet.</p></div></td></tr>';return}
+  tbody.innerHTML=orders.slice(0,5).map(o=>`
+    <tr>
+      <td><strong>${esc(o.name)}</strong><br><span style="font-size:.72rem;color:var(--muted)">${esc(o.email||'')}</span></td>
+      <td>${esc(o.service)}</td>
+      <td style="font-size:.78rem">${esc(o.deadline||'N/A')}</td>
+      <td><span class="badge ${o.status}">${o.status}</span></td>
+    </tr>`).join('');
+  // recent chats
+  const rce=document.getElementById('recentChatsEl');
+  if(chats.length===0){rce.innerHTML='<div class="empty-state"><div class="es-icon">💬</div><p>No chat sessions yet.</p></div>';return}
+  rce.innerHTML=chats.slice(0,4).map(c=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showPanel('chat',document.querySelectorAll('.nav-item')[2]);setTimeout(()=>loadChatSession('${c.id}'),100)">
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green-mid));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0">${(c.name||'S')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.85rem;font-weight:600;color:var(--navy)">${esc(c.name||'Student')} ${c.unread?'<span class="badge new">New</span>':''}</div>
+        <div style="font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${esc(c.service||'—')} — ${esc(c.detail||'—')} — ${esc(c.contact||'—')}
+        </div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);white-space:nowrap">${c.time||''}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════
+   FEEDBACK & REVIEWS MODERATION
+═══════════════════════════════════════════ */
+let feedbackFilter='all';
+function filterFeedback(f,btn){
+  feedbackFilter=f;
+  document.querySelectorAll('#panel-feedback .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFeedbackList();
+}
+function renderFeedbackList(){
+  const wrap=document.getElementById('feedbackListWrap');
+  if(!wrap)return;
+  let list=getFeedback();
+  if(feedbackFilter!=='all') list=list.filter(f=>f.status===feedbackFilter);
+  if(list.length===0){
+    wrap.innerHTML='<div class="card"><div class="empty-state"><div class="es-icon">⭐</div><p>No feedback in this category yet. Student reviews submitted from the main site will appear here for approval.</p></div></div>';
+    return;
+  }
+  wrap.innerHTML=list.map(f=>{
+    const stars='★'.repeat(f.rating||5)+'☆'.repeat(5-(f.rating||5));
+    const statusBadge = f.status==='approved'?'<span class="badge done">✅ Live on site</span>'
+                       : f.status==='rejected'?'<span class="badge urgent">🚫 Rejected</span>'
+                       : '<span class="badge pending">⏳ Pending Review</span>';
+    const isUnread = f.status==='pending';
+    return `<div class="card" style="${isUnread?'border-color:var(--blue);box-shadow:0 0 0 1px var(--blue-light)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div>
+          <h3 style="margin-bottom:2px">${isUnread?'<span class="unread-dot" style="display:inline-block;margin-right:6px"></span>':''}${esc(f.name||'Anonymous')}</h3>
+          <p style="margin-bottom:6px">${esc(f.country||'')}</p>
+          <div style="color:#F59E0B;font-size:.95rem">${stars}</div>
+        </div>
+        ${statusBadge}
+      </div>
+      <p style="font-size:.88rem;color:var(--slate);line-height:1.6;margin-bottom:14px;font-style:italic">"${esc(f.text||'')}"</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${f.status!=='approved'?`<button class="action-btn mark" onclick="approveFeedback(${f.id})">✅ Approve & Publish</button>`:''}
+        ${f.status!=='rejected'?`<button class="action-btn del" onclick="rejectFeedback(${f.id})">🚫 Reject</button>`:''}
+        ${f.status==='approved'?`<button class="action-btn view" onclick="unpublishFeedback(${f.id})">↩️ Unpublish</button>`:''}
+        <button class="action-btn del" onclick="deleteFeedbackItem(${f.id})">🗑️ Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function approveFeedback(id){
+  const list=getFeedback();const f=list.find(x=>x.id===id);if(!f)return;
+  f.status='approved';updateFeedback(f);renderFeedbackList();refreshDashboard();
+}
+function rejectFeedback(id){
+  const list=getFeedback();const f=list.find(x=>x.id===id);if(!f)return;
+  f.status='rejected';updateFeedback(f);renderFeedbackList();refreshDashboard();
+}
+function unpublishFeedback(id){
+  const list=getFeedback();const f=list.find(x=>x.id===id);if(!f)return;
+  f.status='pending';updateFeedback(f);renderFeedbackList();refreshDashboard();
+}
+function deleteFeedbackItem(id){
+  if(!confirm('Delete this review permanently?'))return;
+  deleteFeedbackRemote(id);renderFeedbackList();refreshDashboard();
+}
+
+/* ═══════════════════════════════════════════
+   ORDERS
+═══════════════════════════════════════════ */
+let currentFilter='all', currentSearch='';
+function renderOrdersTable(orders=getOrders()){
+  let filtered=orders;
+  if(currentFilter!=='all')filtered=filtered.filter(o=>o.status===currentFilter);
+  if(currentSearch)filtered=filtered.filter(o=>(o.name+o.service+o.email).toLowerCase().includes(currentSearch.toLowerCase()));
+  const tbody=document.getElementById('ordersBody');
+  if(filtered.length===0){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state" style="padding:32px 20px"><div class="es-icon">📋</div><p>No bookings match your filter.</p></div></td></tr>';return}
+  tbody.innerHTML=filtered.map((o)=>{
+    const realIdx = orders.indexOf(o);
+    const isUnread = o.status==='new'; // "new" = not yet reviewed by admin
+    const sourceTag = o.source==='live_chat' ? '<span class="badge new" style="margin-left:5px">💬 Chat</span>' : '';
+    return `
+    <tr style="${isUnread?'background:rgba(26,86,219,0.04);font-weight:600':''}">
+      <td style="color:var(--muted);font-size:.78rem">${isUnread?'<span class="unread-dot" style="display:inline-block;margin-right:4px"></span>':''}#${realIdx+1}</td>
+      <td><strong>${esc(o.name)}</strong>${sourceTag}<br><span style="font-size:.72rem;color:var(--muted);font-weight:400">${esc(o.country||'')}</span></td>
+      <td>${esc(o.service)}</td>
+      <td style="font-size:.78rem">${esc(o.platform||'—')}</td>
+      <td style="font-size:.78rem">${esc(o.deadline||'N/A')}</td>
+      <td style="font-size:.78rem">${esc(o.phone||o.email||'—')}</td>
+      <td><span class="badge ${o.status}">${o.status}</span></td>
+      <td style="white-space:nowrap;display:flex;gap:5px;flex-wrap:wrap">
+        <button class="action-btn view" onclick="viewOrder(${realIdx})">View</button>
+        <button class="action-btn engage" onclick="engageClient(${realIdx})">💬 Engage</button>
+        ${o.status!=='done'?`<button class="action-btn mark" onclick="markDone(${realIdx})">Done</button>`:`<button class="action-btn view" onclick="reopenOrder(${realIdx})">Reopen</button>`}
+        <button class="action-btn del" onclick="deleteOrder(${realIdx})">Del</button>
+      </td>
+    </tr>`}).join('');
+}
+function filterOrders(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOrdersTable();
+}
+function searchOrders(q){currentSearch=q;renderOrdersTable()}
+
+/* ══════════════════════════════
+   EXCEL EXPORT
+   Downloads all bookings as a formatted .xlsx spreadsheet
+══════════════════════════════ */
+function exportOrdersExcel(){
+  if(typeof XLSX === 'undefined'){
+    alert('Excel library not loaded yet. Please wait a moment and try again.');
+    return;
+  }
+  const orders = getOrders();
+  if(!orders.length){ alert('No bookings to export yet.'); return; }
+
+  // Build rows
+  const headers = ['#','Name','Email','Phone','Country','Service','Platform/Course','Deadline','Instructions','Submitted At','Status','Source','Device ID'];
+  const rows = orders.map((o,i) => [
+    i+1,
+    o.name||'',
+    o.email||'',
+    o.phone||'',
+    o.country||'',
+    o.service||'',
+    o.platform||o.course||'',
+    o.deadline||'',
+    o.instructions||'',
+    o.submittedAt||'',
+    o.status||'',
+    o.source==='live_chat'?'Live Chat':'Booking Form',
+    o.deviceId||'',
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:4},{wch:20},{wch:28},{wch:18},{wch:14},{wch:20},
+    {wch:22},{wch:20},{wch:40},{wch:22},{wch:10},{wch:14},{wch:28}
+  ];
+
+  // Header row styling
+  headers.forEach((_,i)=>{
+    const cell = ws[XLSX.utils.encode_cell({r:0,c:i})];
+    if(cell) cell.s = { font:{bold:true}, fill:{fgColor:{rgb:'1A56DB'}}, font:{color:{rgb:'FFFFFF'},bold:true} };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bookings');
+
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `VersaExam_Bookings_${date}.xlsx`);
+}
+
+/* ══════════════════════════════
+   GOOGLE SHEETS SYNC
+   Sends all current bookings to a Google Apps Script webhook
+══════════════════════════════ */
+async function syncToSheets(){
+  const url = getS('gs_url');
+  if(!url || url === ''){
+    alert('Google Sheets URL not configured yet.\n\nGo to Integrations → Google Sheets to set it up.');
+    return;
+  }
+  const btn = document.getElementById('sheetsSyncBtn');
+  const statusEl = document.getElementById('sheetsSyncStatus');
+  btn.textContent = '⏳ Syncing...';
+  btn.disabled = true;
+  statusEl.style.display = 'block';
+  statusEl.style.background = '#FEF3C7';
+  statusEl.style.color = '#92400E';
+  statusEl.textContent = 'Syncing bookings to Google Sheets...';
+
+  const orders = getOrders();
+  if(!orders.length){
+    statusEl.style.background = '#FEF3C7';
+    statusEl.textContent = '⚠️ No bookings to sync yet.';
+    btn.textContent = '📊 Sheets';
+    btn.disabled = false;
+    return;
+  }
+
+  let synced = 0;
+  let failed = 0;
+
+  // Send each order as a row to the Apps Script webhook
+  for(const o of orders){
+    try{
+      const params = new URLSearchParams({
+        timestamp:   o.submittedAt || '',
+        name:        o.name || '',
+        email:       o.email || '',
+        phone:       o.phone || '',
+        country:     o.country || '',
+        service:     o.service || '',
+        platform:    o.platform || o.course || '',
+        deadline:    o.deadline || '',
+        instructions:o.instructions || '',
+        status:      o.status || '',
+        source:      o.source === 'live_chat' ? 'Live Chat' : 'Booking Form',
+      });
+      await fetch(url + '?' + params.toString(), { method:'GET', mode:'no-cors' });
+      synced++;
+    }catch(e){ failed++; }
+  }
+
+  btn.textContent = '📊 Sheets';
+  btn.disabled = false;
+  if(failed === 0){
+    statusEl.style.background = '#ECFDF5';
+    statusEl.style.color = '#065F46';
+    statusEl.textContent = `✅ ${synced} bookings synced to Google Sheets successfully!`;
+  } else {
+    statusEl.style.background = '#FEF2F2';
+    statusEl.style.color = '#991B1B';
+    statusEl.textContent = `⚠️ ${synced} synced, ${failed} failed. Check your Sheets URL in Integrations.`;
+  }
+  setTimeout(()=>{ statusEl.style.display='none'; }, 6000);
+}
+function markDone(i){
+  const orders=getOrders();const o=orders[i];if(!o)return;
+  o.status='done';
+  updateOrder(o);
+  renderOrdersTable();   // re-render immediately so it moves out of the active list right away
+  refreshDashboard();
+}
+function reopenOrder(i){
+  const orders=getOrders();const o=orders[i];if(!o)return;
+  o.status='pending';
+  updateOrder(o);
+  renderOrdersTable();
+  refreshDashboard();
+}
+function deleteOrder(i){if(!confirm('Delete this booking?'))return;const orders=getOrders();const o=orders[i];if(!o)return;deleteOrderRemote(o.id);renderOrdersTable();refreshDashboard()}
+function viewOrder(i){
+  const o=getOrders()[i];
+  if(!o)return;
+  // Viewing it counts as "reviewed" — clear the unread/new state
+  if(o.status==='new'){ o.status='pending'; updateOrder(o); renderOrdersTable(); refreshDashboard(); }
+  const fields=[
+    ['Student Name',o.name],['Email',o.email],['Phone / WhatsApp',o.phone],
+    ['Country',o.country],['Service',o.service],['Exam Platform',o.platform],
+    ['Course Name',o.course],['Deadline',o.deadline],['Instructions',o.instructions],
+    ['Submitted At',o.submittedAt],['Status',o.status],
+    ['Source',o.source==='live_chat'?'💬 Live Chat':'📋 Booking Form'],
+    ['Device ID',o.deviceId ? o.deviceId.slice(0,20)+'…' : '—'],
+  ];
+  document.getElementById('orderModalBody').innerHTML=fields.map(([l,v])=>`
+    <div class="detail-row"><div class="dr-label">${l}</div><div class="dr-val">${esc(v||'—')}</div></div>`).join('')
+    + `<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        <button class="save-btn" onclick="closeModal();engageClientByOrder(${JSON.stringify(o.id)})">💬 Engage via Chat</button>
+        ${o.phone?`<a href="https://wa.me/${o.phone.replace(/[^0-9]/g,'')}" target="_blank" class="save-btn" style="background:linear-gradient(135deg,#25D366,#128C7E);text-decoration:none;display:inline-flex;align-items:center">📱 WhatsApp Client</a>`:''}
+       </div>`;
+  document.getElementById('orderModal').classList.add('show');
+}
+function closeModal(){document.getElementById('orderModal').classList.remove('show')}
+document.getElementById('orderModal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+
+/* ── ENGAGE: open Live Chat panel for this client, creating a session if none exists yet ── */
+function engageClient(i){
+  const o=getOrders()[i];
+  if(!o)return;
+  engageClientByOrder(o.id);
+}
+async function engageClientByOrder(orderId){
+  const orders=getOrders();
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+
+  // If this order came from a chat, jump straight to that session
+  if(o.linkedChatId){
+    showPanel('chat', document.querySelectorAll('.nav-item')[2]);
+    setTimeout(()=>loadChatSession(o.linkedChatId), 100);
+    return;
+  }
+
+  // Otherwise (booking-form order), check if a chat session already exists for this client —
+  // prefer matching by deviceId (most reliable "same person, same gadget" signal), fall back to contact.
+  const chats=getChatSessions();
+  const contactKey = o.email || o.phone || '';
+  let existing = (o.deviceId && chats.find(c => c.deviceId === o.deviceId))
+              || chats.find(c => c.contact === contactKey);
+
+  if(!existing){
+    // Create a fresh chat session so the admin can message this client directly from the platform
+    const newSession = {
+      id: String(Date.now()),
+      deviceId: o.deviceId || null,
+      name: o.name || 'Student',
+      contact: contactKey || 'N/A',
+      service: o.service || 'N/A',
+      detail: o.platform || o.course || 'N/A',
+      deadline: o.deadline || 'N/A',
+      messages: [{ cls:'system', text: `Admin started this conversation regarding booking: ${o.service}`, ts: Date.now() }],
+      time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+      unread: false,
+      status: 'new',
+      adminReplies: [],
+      studentReplies: [],
+      createdAt: Date.now(),
+      linkedOrderId: o.id,
+    };
+    await updateChatSession(newSession);
+    existing = newSession;
+  }
+
+  showPanel('chat', document.querySelectorAll('.nav-item')[2]);
+  setTimeout(()=>loadChatSession(existing.id), 150);
+}
+
+/* ═══════════════════════════════════════════
+   LIVE CHAT ADMIN
+═══════════════════════════════════════════ */
+let activeChatId=null;
+function renderAdminSessions(){
+  const sessions=[...getChatSessions()].sort((a,b)=>lastActivityTs(b)-lastActivityTs(a)); // newest activity first, WhatsApp-style
+  const list=document.getElementById('adminSessionList');
+  const unread=sessions.filter(s=>s.unread).length;
+  document.getElementById('chatCount').textContent=sessions.length?`(${sessions.length}${unread?' · '+unread+' new':''})`: '';
+  if(sessions.length===0){
+    list.innerHTML='<div class="empty-state" style="padding:24px 16px"><div class="es-icon">💬</div><p>No chat sessions yet. They appear here when students use the live chat.</p></div>';
+    return;
+  }
+  list.innerHTML=sessions.map(s=>`
+    <div class="session-item${s.id===activeChatId?' active':''}" style="${s.unread&&s.id!==activeChatId?'background:rgba(26,86,219,0.05)':''}" onclick="loadChatSession('${s.id}')">
+      <div class="si-name">
+        ${esc(s.name||'Student')}
+        ${s.unread?'<span class="unread-dot"></span>':''}
+        ${(s.studentReplies&&s.studentReplies.length)?'<span style="font-size:.65rem;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:50px;font-weight:700">replied</span>':''}
+      </div>
+      <div class="si-preview">${esc(s.service||'—')} — ${esc(s.detail||'—')}</div>
+      <div class="si-time">${s.time||''} · ${esc(s.contact||'')}</div>
+    </div>`).join('');
+}
+/* Returns the timestamp of the most recent message/reply in a session — falls back to createdAt
+   if nothing else has a timestamp. Used to sort the inbox like WhatsApp: newest activity on top. */
+function lastActivityTs(session){
+  let latest = session.createdAt || 0;
+  (session.messages||[]).forEach(m=>{ if(m.ts && m.ts>latest) latest=m.ts; });
+  (session.adminReplies||[]).forEach(r=>{ const ts = typeof r==='string'?0:(r.ts||0); if(ts>latest) latest=ts; });
+  (session.studentReplies||[]).forEach(r=>{ const ts = typeof r==='string'?0:(r.ts||0); if(ts>latest) latest=ts; });
+  return latest;
+}
+/* Build one message row: side = 'left' (student/bot) or 'right' (admin) */
+function buildMsgRow(cls, text, ts, label){
+  const side = (cls==='admin-sent') ? 'right' : 'left';
+  const row=document.createElement('div');
+  row.className='cmsg-row '+side;
+  if(label){
+    const lbl=document.createElement('div');
+    lbl.className='cmsg-label';
+    lbl.innerHTML=label;
+    row.appendChild(lbl);
+  }
+  const bubble=document.createElement('div');
+  bubble.className='cmsg '+cls;
+  bubble.textContent=text;
+  row.appendChild(bubble);
+  const timeEl=document.createElement('div');
+  timeEl.className='cmsg-time';
+  timeEl.textContent = ts ? new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+  row.appendChild(timeEl);
+  return row;
+}
+
+function loadChatSession(id){
+  activeChatId=id;
+  const sessions=getChatSessions();
+  const s=sessions.find(x=>x.id===id);
+  if(!s)return;
+  if(s.unread){ s.unread=false; updateChatSession(s); } // sync read status
+  renderAdminSessions();
+
+  // Header
+  document.getElementById('chatMainHead').innerHTML=`<div>
+    <h4>${esc(s.name||'Student')}</h4>
+    <p><strong>Service:</strong> ${esc(s.service||'—')} &nbsp;|&nbsp;
+    <strong>Details:</strong> ${esc(s.detail||'—')} &nbsp;|&nbsp;
+    <strong>Deadline:</strong> ${esc(s.deadline||'N/A')} &nbsp;|&nbsp;
+    <strong>Contact:</strong> ${esc(s.contact||'—')}</p>
+  </div><span class="badge ${s.status||'new'}">${s.status||'new'}</span>`;
+
+  // ── Build a single chronological timeline from messages + adminReplies + studentReplies ──
+  const area=document.getElementById('adminMsgs');
+  area.innerHTML='';
+
+  const timeline=[];
+  (s.messages||[]).forEach(m=>{
+    let cls = m.cls==='bot' ? 'bot' : m.cls==='user' ? 'student-sent' : (m.cls||'bot');
+    timeline.push({ cls, text:m.text, ts:m.ts||0, label:null });
+  });
+  (s.adminReplies||[]).forEach(r=>{
+    const text = typeof r === 'string' ? r : r.text;
+    const ts = typeof r === 'string' ? 0 : r.ts;
+    timeline.push({ cls:'admin-sent', text, ts:ts||0, label:'<span class="agent-icon" style="width:14px;height:14px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px">🛡</span> You (Admin)' });
+  });
+  (s.studentReplies||[]).forEach(r=>{
+    const text = typeof r === 'string' ? r : r.text;
+    const ts = typeof r === 'string' ? 0 : r.ts;
+    timeline.push({ cls:'student-sent', text, ts:ts||0, label:null });
+  });
+
+  // Sort chronologically when timestamps exist; otherwise keep original grouping order
+  const hasTimestamps = timeline.some(t=>t.ts>0);
+  if(hasTimestamps) timeline.sort((a,b)=>a.ts-b.ts);
+
+  if(timeline.length===0){
+    area.innerHTML='<div class="chat-no-sel"><span>No messages in this session</span></div>';
+  } else {
+    timeline.forEach(item=>{
+      area.appendChild(buildMsgRow(item.cls, item.text, item.ts, item.label));
+    });
+  }
+  area.scrollTop=area.scrollHeight;
+
+  const replyTa=document.getElementById('adminReplyText');
+  replyTa.disabled=false;
+  replyTa.placeholder='Reply to '+esc(s.name||'student')+'... (Enter to send, Shift+Enter for new line)';
+  document.getElementById('adminSendBtn').disabled=false;
+}
+async function sendAdminReply(){
+  const ta=document.getElementById('adminReplyText');
+  const txt=ta.value.trim();
+  if(!txt||!activeChatId)return;
+  const sessions=getChatSessions();
+  const s=sessions.find(x=>x.id===activeChatId);
+  if(!s)return;
+  if(!s.adminReplies)s.adminReplies=[];
+  const replyObj={ text: txt, ts: Date.now() };
+  s.adminReplies.push(replyObj);
+  ta.value='';
+
+  // Show in admin view immediately (optimistic UI)
+  appendAdminMsgRow('admin-sent', txt, replyObj.ts);
+  document.getElementById('adminMsgs').scrollTop = document.getElementById('adminMsgs').scrollHeight;
+
+  // ── Save via Firebase (real-time, reaches student on ANY device) ──
+  await updateChatSession(s);
+
+  // Also signal same-browser student tab via localStorage (works even without Firebase)
+  localStorage.setItem('ea_admin_reply_'+activeChatId, JSON.stringify({text:txt,ts:Date.now()}));
+  localStorage.setItem('ea_chats_updated', Date.now().toString());
+}
+function handleAdminKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAdminReply()}}
+function appendAdminMsgRow(cls, text, ts){
+  const area=document.getElementById('adminMsgs');
+  const label = cls==='admin-sent' ? '<span class="agent-icon" style="width:14px;height:14px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px">🛡</span> You (Admin)' : null;
+  area.appendChild(buildMsgRow(cls, text, ts, label));
+}
+
+/* ═══════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════ */
+function loadSettingsForm(){
+  document.getElementById('s_bizName').value=getS('biz_name');
+  document.getElementById('s_tagline').value=getS('tagline');
+  document.getElementById('s_waNumber').value=getS('wa_number');
+  document.getElementById('s_email').value=getS('support_email');
+  document.getElementById('s_notifEmail').value=getS('notif_email');
+}
+async function saveSettings(){
+  setS('biz_name',document.getElementById('s_bizName').value.trim()||'VersaExam');
+  setS('tagline',document.getElementById('s_tagline').value.trim());
+  setS('wa_number',document.getElementById('s_waNumber').value.trim());
+  setS('support_email',document.getElementById('s_email').value.trim());
+
+  const np=document.getElementById('s_adminPass').value.trim();
+  if(np){
+    if(auth && auth.currentUser){
+      try{
+        await auth.currentUser.updatePassword(np);
+        document.getElementById('s_adminPass').value='';
+        showOk('settingsSaveOk');
+      }catch(err){
+        if(err.code==='auth/requires-recent-login'){
+          alert('For security, please sign out and sign back in before changing your password.');
+        } else {
+          alert('Password change failed: '+err.message);
+        }
+        return;
+      }
+    } else {
+      // Firebase not ready — can't change password
+      alert('Cannot change password: Firebase is not connected. Please use the hosted URL.');
+      return;
+    }
+  }
+  showOk('settingsSaveOk');
+}
+function saveNotifEmail(){
+  setS('notif_email',document.getElementById('s_notifEmail').value.trim());
+  showOk('emailSaveOk');
+}
+
+/* ═══════════════════════════════════════════
+   INTEGRATIONS
+═══════════════════════════════════════════ */
+function loadIntegrationStatus(){
+  // Firebase status (most important — controls cross-device sync)
+  const fbBadge=document.getElementById('fbBadge');
+  const fbText=document.getElementById('fbStatusText');
+  const fbCard=document.getElementById('firebaseStatusCard');
+  if(firebaseReady){
+    fbBadge.textContent='✅ Connected';
+    fbBadge.style.background='var(--green-light)';fbBadge.style.color='var(--green)';
+    fbText.innerHTML='<strong style="color:var(--green)">Bookings, chats, and feedback are syncing live across all devices.</strong> Students can book from their phone and you\'ll see it here instantly.';
+    fbCard.style.borderColor='var(--green-mid)';
+  } else {
+    fbBadge.textContent='⚠️ Not Connected';
+    fbBadge.style.background='#FEF3C7';fbBadge.style.color='#92400E';
+    fbText.innerHTML='<strong style="color:#92400E">Not connected yet.</strong> Bookings and chats only save on the SAME browser/device right now. Follow the steps below to enable cross-device syncing — it takes about 5 minutes and is completely free.';
+    fbCard.style.borderColor='#F59E0B';
+  }
+
+  const ejOk=getS('ej_pubkey')&&getS('ej_pubkey')!=='';
+  const gsOk=getS('gs_url')&&getS('gs_url')!=='';
+  document.getElementById('ejStatus').textContent=ejOk?'Connected ✅':'Not configured';
+  document.getElementById('gsDot').style.background=gsOk?'var(--green-mid)':'var(--muted)';
+  document.getElementById('ejDot').style.background=ejOk?'var(--green-mid)':'var(--muted)';
+  document.getElementById('gsStatus').textContent=gsOk?'Connected ✅':'Not configured';
+  // Fill fields
+  document.getElementById('ej_pubkey').value=getS('ej_pubkey')||'';
+  document.getElementById('ej_service').value=getS('ej_service')||'';
+  document.getElementById('ej_template').value=getS('ej_template')||'';
+  document.getElementById('gs_url').value=getS('gs_url')||'';
+}
+function saveEmailJS(){
+  setS('ej_pubkey',document.getElementById('ej_pubkey').value.trim());
+  setS('ej_service',document.getElementById('ej_service').value.trim());
+  setS('ej_template',document.getElementById('ej_template').value.trim());
+  loadIntegrationStatus();showOk('ejSaveOk');
+}
+function saveSheets(){
+  setS('gs_url',document.getElementById('gs_url').value.trim());
+  loadIntegrationStatus();showOk('gsSaveOk');
+}
+function toggleKey(id,btn){
+  const el=document.getElementById(id);
+  if(el.type==='password'){el.type='text';btn.textContent='Hide'}
+  else{el.type='password';btn.textContent='Show'}
+}
+
+/* ═══════════════════════════════════════════
+   DISPLAY CONTROLS
+═══════════════════════════════════════════ */
+function loadDisplayForm(){
+  document.getElementById('tog_setupNotice').checked=getS('show_setup_notice')!==false;
+  document.getElementById('tog_liveChat').checked=getS('show_live_chat')!==false;
+  document.getElementById('tog_exitPopup').checked=getS('show_exit_popup')!==false;
+  document.getElementById('tog_waButton').checked=getS('show_wa_button')!==false;
+  document.getElementById('tog_stickyBar').checked=getS('show_sticky_bar')!==false;
+  document.getElementById('tog_announcement').checked=getS('show_announcement')===true;
+  document.getElementById('s_announcement').value=getS('announcement_text')||'';
+}
+function saveDisplaySettings(){
+  setS('show_setup_notice',document.getElementById('tog_setupNotice').checked);
+  setS('show_live_chat',document.getElementById('tog_liveChat').checked);
+  setS('show_exit_popup',document.getElementById('tog_exitPopup').checked);
+  setS('show_wa_button',document.getElementById('tog_waButton').checked);
+  setS('show_sticky_bar',document.getElementById('tog_stickyBar').checked);
+  setS('show_announcement',document.getElementById('tog_announcement').checked);
+  setS('announcement_text',document.getElementById('s_announcement').value);
+}
+
+/* ═══════════════════════════════════════════
+   POLL FOR NEW DATA (from main site via localStorage)
+═══════════════════════════════════════════ */
+let _lastChatsUpdate='', _lastOrdersUpdate='';
+function pollForNewData(){
+  setInterval(()=>{
+    const chatsTs=localStorage.getItem('ea_chats_updated')||'';
+    const ordersTs=localStorage.getItem('ea_orders_updated')||'';
+
+    if(chatsTs!==_lastChatsUpdate){
+      _lastChatsUpdate=chatsTs;
+      refreshDashboard();
+      if(document.getElementById('panel-chat').classList.contains('active')){
+        renderAdminSessions();
+        // If a session is open, refresh it to show new student replies
+        if(activeChatId) loadChatSession(activeChatId);
+      }
+    }
+    if(ordersTs!==_lastOrdersUpdate){
+      _lastOrdersUpdate=ordersTs;
+      refreshDashboard();
+      if(document.getElementById('panel-orders').classList.contains('active'))renderOrdersTable();
+    }
+  },2000);
+}
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+function esc(str){if(!str)return'';return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function showOk(id){const el=document.getElementById(id);el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000)}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.altKey&&e.key==='d')showPanel('dashboard',document.querySelector('.nav-item'));
+  if(e.altKey&&e.key==='o')showPanel('orders',document.querySelectorAll('.nav-item')[1]);
+  if(e.altKey&&e.key==='c')showPanel('chat',document.querySelectorAll('.nav-item')[2]);
+});
+
+// Default credentials hint in console
+console.log('VersaExam Admin')
+console.log('VersaExam Admin — secured by Firebase Authentication.');
+
+/* ═══════════════════════════════════════════
+   CLIENTS PANEL — Verification Queue + Client Management
+═══════════════════════════════════════════ */
+let _clientFilter = 'all';
+let _clientSearch = '';
+
+/* ── Verification Queue ── */
+async function renderVerifyQueue(){
+  if(!firebaseReady) return;
+  const card = document.getElementById('verifyQueueCard');
+  const list = document.getElementById('verifyQueueList');
+  const countEl = document.getElementById('verifyQueueCount');
+  try{
+    const snap = await db.collection('verifications').where('status','==','pending').get();
+    const items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0));
+    if(items.length===0){ card.style.display='none'; return; }
+    card.style.display='block';
+    countEl.textContent = items.length;
+    list.innerHTML = items.map(v=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:.86rem;font-weight:700;color:var(--navy)">${esc(v.name||'Unknown')} <span style="color:var(--muted);font-weight:400">· ${esc(v.phone||'')}</span></div>
+          <div style="font-size:.74rem;color:var(--muted)">${new Date(v.requestedAt||0).toLocaleString()}</div>
+        </div>
+        <button class="action-btn mark" onclick="sendVerificationCode('${v.sessionId}','${esc(v.phone||'')}','${esc(v.name||'')}')">📲 Send Code</button>
+      </div>`).join('');
+  }catch(e){ card.style.display='none'; }
+}
+
+async function sendVerificationCode(sessionId, phone, name){
+  // Generate a random 4-digit code
+  const code = String(Math.floor(1000 + Math.random() * 9000));
+  const btn = event.target;
+  btn.textContent = '⏳ Sending...'; btn.disabled = true;
+
+  try{
+    // Save code to Firestore — the student's page is listening for this
+    await db.collection('verifications').doc(sessionId).set({
+      code, sentAt: Date.now(), status: 'sent'
+    }, {merge: true});
+
+    // Show the code to admin so they can send it via WhatsApp
+    const waMsg = encodeURIComponent(`Hi ${name}! Your VersaExam verification code is: *${code}*
+
+This code expires in 10 minutes.`);
+    const waUrl = `https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${waMsg}`;
+
+    btn.textContent = '✅ Sent';
+    // Open WhatsApp with pre-filled message
+    window.open(waUrl, '_blank');
+
+    // Show code prominently in case they want to copy it manually
+    setTimeout(()=>{
+      alert(`Code sent ✅
+
+Code: ${code}
+
+WhatsApp opened with a pre-filled message for ${name} (${phone}).
+If WhatsApp didn't open, send the code manually.`);
+      renderVerifyQueue();
+    }, 500);
+
+  }catch(e){
+    alert('Failed to send code. Check your connection and try again.');
+    btn.textContent = '📲 Send Code'; btn.disabled = false;
+  }
+}
+
+/* ── Clients List ── */
+function filterClients(f, btn){
+  _clientFilter = f;
+  document.querySelectorAll('#panel-clients .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderClientsList();
+}
+function searchClients(q){ _clientSearch = q; renderClientsList(); }
+
+async function renderClientsList(){
+  const wrap = document.getElementById('clientsListWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="card"><div class="empty-state"><div class="es-icon">⏳</div><p>Loading clients...</p></div></div>';
+  if(!firebaseReady){
+    wrap.innerHTML = '<div class="card"><div class="empty-state"><div class="es-icon">⚠️</div><p>Firebase required to view clients.</p></div></div>';
+    return;
+  }
+  try{
+    const snap = await db.collection('clients').orderBy('createdAt','desc').get();
+    let clients = snap.docs.map(d=>d.data());
+    if(_clientFilter==='verified') clients = clients.filter(c=>c.verified&&!c.blocked);
+    if(_clientFilter==='blocked')  clients = clients.filter(c=>c.blocked);
+    if(_clientSearch){
+      const q = _clientSearch.toLowerCase();
+      clients = clients.filter(c=>(c.name+c.phone+c.clientId).toLowerCase().includes(q));
+    }
+    if(!clients.length){
+      wrap.innerHTML = '<div class="card"><div class="empty-state"><div class="es-icon">👤</div><p>No clients found. Verified clients appear here after they complete phone verification in the chat.</p></div></div>';
+      return;
+    }
+    wrap.innerHTML = clients.map(c=>`
+      <div class="card" style="${c.blocked?'border-color:var(--red);opacity:.8':''}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:1rem;font-weight:800;color:var(--navy);font-family:var(--font-head)">${esc(c.clientId||'')}</span>
+              ${c.blocked?'<span class="badge urgent">🚫 Blocked</span>':'<span class="badge done">✅ Verified</span>'}
+            </div>
+            <div style="font-size:.88rem;font-weight:600;color:var(--slate)">${esc(c.name||'Unknown')}</div>
+            <div style="font-size:.8rem;color:var(--muted)">${esc(c.phone||'No phone')}</div>
+            <div style="font-size:.74rem;color:var(--muted);margin-top:2px">Verified ${c.verifiedAt?new Date(c.verifiedAt).toLocaleDateString():''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            ${c.phone?`<a href="https://wa.me/${(c.phone||'').replace(/[^0-9]/g,'')}" target="_blank" class="action-btn view" style="text-decoration:none">📱 WhatsApp</a>`:''}
+            ${c.blocked
+              ? `<button class="action-btn mark" onclick="setClientBlocked('${c.clientId}',false)">✅ Unblock</button>`
+              : `<button class="action-btn del" onclick="setClientBlocked('${c.clientId}',true)">🚫 Block</button>`
+            }
+          </div>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="card"><div class="empty-state"><div class="es-icon">❌</div><p>Error loading clients: ${esc(e.message)}</p></div></div>`;
+  }
+}
+
+async function setClientBlocked(clientId, blocked){
+  const action = blocked ? 'block' : 'unblock';
+  if(!confirm(`Are you sure you want to ${action} client ${clientId}?`)) return;
+  try{
+    await db.collection('clients').doc(clientId).set({ blocked }, {merge:true});
+    // Also add/remove from blocked phone list for quick lookup
+    const snap = await db.collection('clients').doc(clientId).get();
+    if(snap.exists){
+      const phone = (snap.data().phone||'').replace(/[^0-9]/g,'');
+      if(phone){
+        if(blocked) await db.collection('blocked').doc(phone).set({ clientId, blockedAt: Date.now() });
+        else await db.collection('blocked').doc(phone).delete();
+      }
+    }
+    renderClientsList();
+  }catch(e){ alert('Failed: ' + e.message); }
+}
+
+</script>
+</body>
+</html>

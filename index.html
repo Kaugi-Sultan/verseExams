@@ -1394,8 +1394,7 @@ button:focus-visible,a:focus-visible{outline:3px solid rgba(36,84,166,.35);outli
      - Create a Google Sheet, Extensions → Apps Script → paste the webhook script
      - Deploy as Web App (Anyone can access) → copy the URL below
 
-  4. Admin Password: change in admin.html → Settings after first login.
-     Default login: admin / admin2024
+  4. Admin credentials: configure only through the Firebase Admin account.
 ═══════════════════════════════════════════════ */
 const CONFIG = {
   // ── FIREBASE (paste your project's config here) ──
@@ -3352,7 +3351,7 @@ async function sendChatMsg(){
   const input=document.getElementById('chatInput');
   const text=input.value.trim();
   if(!text||!currentChatSessionId)return;
-  if(text.toLowerCase()==='/admin'){input.value='';window.open('admin.html','_blank');return;}
+  if(text.toLowerCase()==='/admin'){input.value='';window.open('/admin/login','_blank');return;}
   addChatMsg(text,'user');
   input.value='';
   await persistStudentReply(text);
@@ -3549,13 +3548,13 @@ function handleFooterClick(){
   footerClicks++;
   clearTimeout(footerTimer);
   footerTimer=setTimeout(()=>footerClicks=0,2000);
-  if(footerClicks>=5){footerClicks=0;window.open('admin.html','_blank')}
+  if(footerClicks>=5){footerClicks=0;window.open('/admin/login','_blank')}
 }
 // Method 2: URL hash #admin
-if(window.location.hash==='#admin')window.open('admin.html','_blank');
+if(window.location.hash==='#admin')window.open('/admin/login','_blank');
 // Method 3: Key combo Ctrl+Shift+A
 document.addEventListener('keydown',e=>{
-  if(e.ctrlKey&&e.shiftKey&&e.key==='A'){e.preventDefault();window.open('admin.html','_blank')}
+  if(e.ctrlKey&&e.shiftKey&&e.key==='A'){e.preventDefault();window.open('/admin/login','_blank')}
 });
 
 /* ══════════════════════════════
