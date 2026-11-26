@@ -30,7 +30,11 @@ export default async function AdminDashboard({ searchParams }: { searchParams: S
       <div className="shell">
         <div className="admin-topline">
           <div><span className="eyebrow"><span className="eyebrow-line" /> THE EDITORIAL DESK</span><h1>Your notebook.</h1></div>
-          <div className="admin-top-actions"><Link href="/blog" className="button button-quiet">View journal ↗</Link><LogoutButton /></div>
+          <div className="admin-top-actions">
+            <Link href="/admin.html" className="button button-quiet">Bookings &amp; site tools ↗</Link>
+            <Link href="/blog" className="button button-quiet">View journal ↗</Link>
+            <LogoutButton />
+          </div>
         </div>
         {notice && notices[notice] && <p className={notice.endsWith("error") || notice === "missing" ? "notice notice-error" : "notice"} role="status">{notices[notice]}</p>}
         <div className="admin-stats">

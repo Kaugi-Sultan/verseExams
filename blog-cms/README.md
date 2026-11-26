@@ -63,6 +63,8 @@ Open [http://localhost:3000/](http://localhost:3000/) for the main website, [htt
 
 The dashboard supports creating, editing, publishing, unpublishing, and deleting posts. Draft posts are available only in the authenticated dashboard and are excluded from public listing, search, article pages, and metadata. Article bodies accept Markdown; embedded raw HTML is not rendered. The editor toolbar inserts Markdown at the current selection and previews using the same raw-HTML-disabled renderer. Uploaded JPEG, PNG, GIF, and WebP files (up to 5 MiB) are stored as PostgreSQL byte data and inserted into the article as `/api/media/{id}` image links.
 
+The admin dashboard's **Bookings & site tools** link opens the legacy `admin.html` dashboard at `/admin.html`; its **Editorial Desk** link returns to the CMS without another sign-in. Signing in to the editorial desk also signs into the existing Firebase project, so both dashboards share one sign-in. The Firebase account must use the configured admin email and password and have the `admin: true` custom claim. Signing out of either dashboard clears both sessions.
+
 The checked-in `20261107000000_add_media` migration adds the `Media` table. Apply it with `npx prisma migrate deploy` before using image uploads. Existing installations must run migrations before restarting the app; PostgreSQL stores the image bytes in the database, so include this table in backup and retention planning.
 
 ## Legacy site integration
@@ -87,6 +89,7 @@ npm run db:studio
 
 - No registration or hard-coded/default credentials are included.
 - The admin uses an eight-hour HMAC-signed, HttpOnly, SameSite=Lax cookie; it is Secure in production and scoped to `/`.
+- Admin sign-in checks both the server-configured bcrypt password and the Firebase Authentication account's `admin: true` custom claim. The Firebase web configuration is public client configuration; never put Firebase service-account credentials in client code.
 - Admin pages and each write action verify the signature, expiration, and configured email on the server. Next.js Server Actions enforce their request-origin checks.
 - Image upload is a same-origin authenticated POST, capped at 5 MiB per file, and validates both the raster MIME allowlist and file signature. Public media reads serve only stored raster bytes with explicit content length and `nosniff`; no upload CORS is enabled.
 - Login attempts for the configured account are counted in PostgreSQL and temporarily locked after eight consecutive failures.

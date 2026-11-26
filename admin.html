@@ -318,7 +318,8 @@ tbody tr:hover td{background:var(--blue-light)}
       </div>
       <div class="topbar-right">
         <div class="tb-badge online" id="statusBadge">🟢 Online</div>
-        <button class="view-site-btn" onclick="window.open('index.html','_blank')">🌐 View Site</button>
+        <a class="view-site-btn" href="/admin">✍ Editorial Desk</a>
+        <button class="view-site-btn" onclick="window.open('/','_blank')">🌐 View Site</button>
       </div>
     </div>
 
@@ -767,12 +768,19 @@ function showDashboard(user){
   loadAll();
 }
 
-function doLogout(){
-  if(auth) auth.signOut();
-  document.getElementById('app').classList.remove('show');
-  document.getElementById('loginScreen').classList.remove('hidden');
-  document.getElementById('loginEmail').value='';
-  document.getElementById('loginPass').value='';
+async function doLogout(){
+  try{
+    if(auth){
+      try{await auth.signOut()}
+      catch(firebaseErr){console.error('Firebase sign out failed:',firebaseErr)}
+    }
+    const response = await fetch('/api/admin/logout', {method:'POST', credentials:'same-origin'});
+    if(!response.ok) throw new Error(`Session sign-out failed (${response.status}).`);
+    window.location.assign('/admin/login');
+  }catch(err){
+    console.error('Admin sign out failed:', err);
+    showLoginError('Sign out could not be completed. Please try again.');
+  }
 }
 
 // Allow Escape on login (no-op, just prevents errors)
